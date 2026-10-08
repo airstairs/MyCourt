@@ -1,0 +1,1837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Basketball Simulator - Destructible Lights</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            touch-action: none;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            background-color: #000;
+        }
+
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 14px;
+            height: 14px;
+            background-color: #3DDC84;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid rgba(0,0,0,0.5);
+        }
+
+        #crosshair::after {
+            content: "×";
+            color: #000;
+            font-size: 11px;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        #power-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 60px;
+            height: 60px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 4;
+            display: none;
+        }
+
+        .top-btn-container {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            z-index: 10;
+        }
+
+        #night-mode-btn {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        #android-toggle-btn {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            width: 44px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .android-head {
+            width: 22px;
+            height: 13px;
+            background: #3DDC84;
+            border-radius: 12px 12px 0 0;
+            position: relative;
+            margin-top: 4px;
+        }
+
+        .android-head::before {
+            content: "";
+            position: absolute;
+            top: -5px;
+            left: 3px;
+            width: 2px;
+            height: 5px;
+            background: #3DDC84;
+            transform: rotate(-35deg);
+            transform-origin: bottom;
+        }
+
+        .android-head::after {
+            content: "";
+            position: absolute;
+            top: -5px;
+            right: 3px;
+            width: 2px;
+            height: 5px;
+            background: #3DDC84;
+            transform: rotate(35deg);
+            transform-origin: bottom;
+        }
+
+        .eye-left, .eye-right {
+            position: absolute;
+            top: 3px;
+            width: 3px;
+            height: 3px;
+            background: #000;
+            border-radius: 50%;
+        }
+        .eye-left { left: 5px; }
+        .eye-right { right: 5px; }
+
+        #android-toggle-btn.active {
+            border-color: #3DDC84;
+            box-shadow: 0 0 12px #3DDC84;
+            background: rgba(61, 220, 132, 0.25);
+        }
+        #android-toggle-btn.active .android-head,
+        #android-toggle-btn.active .android-head::before,
+        #android-toggle-btn.active .android-head::after {
+            background: #ffffff;
+            box-shadow: 0 0 8px #ffffff;
+        }
+
+        #touch-controls {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 2;
+        }
+
+        #action-btn-container {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            align-items: flex-end;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .hud-btn {
+            width: 75px;
+            height: 75px;
+            background: rgba(211, 84, 0, 0.85);
+            border: 3px solid rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            color: white;
+            font-weight: bold;
+            font-size: 13px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        .hud-btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-column {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #dribble-btn {
+            background: rgba(41, 128, 185, 0.85);
+        }
+
+        #jump-btn {
+            background: rgba(241, 196, 15, 0.9);
+            color: #2c3e50;
+        }
+
+        #joystick-base {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            pointer-events: none;
+            display: none;
+            transform: translate(-50%, -50%);
+            z-index: 8;
+        }
+
+        #joystick-stick {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        #interaction-overlay {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            background: rgba(0, 0, 0, 0.75);
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            z-index: 15;
+            display: none;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        #instructions {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            color: white;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            z-index: 20;
+            overflow: hidden;
+        }
+
+        #glass-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .instructions-content {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Hipster Whale CSS Art Styles */
+        .whale-avatar-container {
+            position: relative;
+            width: 140px;
+            height: 100px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .lego-whale-body {
+            position: absolute;
+            width: 110px;
+            height: 60px;
+            background-color: #2675af;
+            border-radius: 8px 35px 30px 8px;
+            box-shadow: inset -6px -6px 0px rgba(0,0,0,0.2), 3px 3px 0px #000;
+        }
+        .lego-whale-belly {
+            position: absolute;
+            bottom: 0;
+            left: 15px;
+            width: 80px;
+            height: 25px;
+            background-color: #e0f0ff;
+            border-radius: 4px 4px 20px 8px;
+            box-shadow: inset -4px -4px 0px rgba(0,0,0,0.1);
+        }
+        .lego-whale-tail {
+            position: absolute;
+            right: -18px;
+            top: 8px;
+            width: 25px;
+            height: 35px;
+            background-color: #2675af;
+            clip-path: polygon(0% 20%, 100% 0%, 100% 100%, 0% 70%);
+            box-shadow: 2px 2px 0px #000;
+        }
+        .lego-whale-spout {
+            position: absolute;
+            top: -18px;
+            left: 45px;
+            width: 6px;
+            height: 16px;
+            background-color: #fff;
+            border-radius: 3px;
+            box-shadow: 1px 1px 0px #000;
+        }
+        .hipster-glasses {
+            position: absolute;
+            top: 18px;
+            left: 28px;
+            display: flex;
+            align-items: center;
+            z-index: 5;
+            filter: drop-shadow(2px 2px 0px #000);
+        }
+        .glasses-rim {
+            width: 20px;
+            height: 20px;
+            border: 4px solid #111;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+        }
+        .glasses-bridge {
+            width: 8px;
+            height: 4px;
+            background-color: #111;
+        }
+        .starbucks-cup {
+            position: absolute;
+            bottom: 5px;
+            left: 38px;
+            width: 16px;
+            height: 24px;
+            background-color: #fff;
+            border: 2px solid #000;
+            border-radius: 2px 2px 4px 4px;
+            z-index: 6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .starbucks-sleeve {
+            width: 100%;
+            height: 10px;
+            background-color: #00704a;
+            position: absolute;
+            top: 7px;
+        }
+        .starbucks-straw {
+            position: absolute;
+            top: -10px;
+            right: 3px;
+            width: 3px;
+            height: 14px;
+            background-color: #00ff66;
+            transform: rotate(15deg);
+            border: 1px solid #000;
+        }
+        .css-basketball {
+            position: absolute;
+            bottom: 5px;
+            left: 60px;
+            width: 18px;
+            height: 18px;
+            background-color: #d35400;
+            border: 2px solid #000;
+            border-radius: 50%;
+            z-index: 6;
+            box-shadow: inset -2px -2px 0px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .css-basketball::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 2px;
+            height: 100%;
+            background-color: #000;
+            transform: translateX(-50%);
+        }
+        .css-basketball::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: #000;
+            transform: translateY(-50%);
+        }
+
+        #start-btn {
+            margin-top: 10px;
+            padding: 14px 30px;
+            font-size: 18px;
+            background: #e67e22;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px #000;
+        }
+        #start-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px #000;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="crosshair"></div>
+    <svg id="power-ring" viewBox="0 0 60 60">
+        <circle id="power-progress" cx="30" cy="30" r="26" fill="none" stroke="#e74c3c" stroke-width="3.5" stroke-dasharray="163.4" stroke-dashoffset="163.4" transform="rotate(-90 30 30)" />
+    </svg>
+
+    <div class="top-btn-container">
+        <div id="android-toggle-btn" title="Toggle Color Inversion Mode">
+            <div class="android-head">
+                <div class="eye-left"></div>
+                <div class="eye-right"></div>
+            </div>
+        </div>
+        <button id="night-mode-btn">☀️ DAY MODE</button>
+    </div>
+
+    <div id="interaction-overlay">Press X to Toggle Lights</div>
+
+    <div id="touch-controls"></div>
+    
+    <div id="action-btn-container">
+        <div class="btn-column">
+            <div id="jump-btn" class="hud-btn">JUMP</div>
+            <div id="dribble-btn" class="hud-btn">DRIBBLE</div>
+        </div>
+        <div id="action-btn" class="hud-btn">X<br>_</div>
+    </div>
+    
+    <div id="joystick-base">
+        <div id="joystick-stick"></div>
+    </div>
+
+    <div id="instructions">
+        <canvas id="glass-canvas"></canvas>
+        <div class="instructions-content">
+            <h1>Basketball Simulator</h1>
+            <div class="whale-avatar-container">
+                <div class="lego-whale-spout"></div>
+                <div class="lego-whale-body">
+                    <div class="lego-whale-belly"></div>
+                </div>
+                <div class="lego-whale-tail"></div>
+                <div class="hipster-glasses">
+                    <div class="glasses-rim"></div>
+                    <div class="glasses-bridge"></div>
+                    <div class="glasses-rim"></div>
+                </div>
+                <div class="starbucks-cup">
+                    <div class="starbucks-sleeve"></div>
+                    <div class="starbucks-straw"></div>
+                </div>
+                <div class="css-basketball"></div>
+            </div>
+            <button id="start-btn">Enter Court</button>
+        </div>
+    </div>
+
+    <script src="three.min.js"></script>
+
+    <script>
+        // Broken Glass Shard Background Animation for Instructions
+        const glassCanvas = document.getElementById('glass-canvas');
+        const glassCtx = glassCanvas.getContext('2d');
+
+        function resizeGlassCanvas() {
+            glassCanvas.width = window.innerWidth;
+            glassCanvas.height = window.innerHeight;
+        }
+        resizeGlassCanvas();
+        window.addEventListener('resize', resizeGlassCanvas);
+
+        const glassShards = [];
+        for (let i = 0; i < 35; i++) {
+            glassShards.push({
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                size: Math.random() * 8 + 4,
+                speedY: Math.random() * 1.5 + 0.5,
+                speedX: (Math.random() - 0.5) * 1.0,
+                rotation: Math.random() * Math.PI * 2,
+                rotSpeed: (Math.random() - 0.5) * 0.05,
+                opacity: Math.random() * 0.5 + 0.2,
+                isGlowing: Math.random() > 0.4
+            });
+        }
+
+        function animateGlassShards() {
+            glassCtx.clearRect(0, 0, glassCanvas.width, glassCanvas.height);
+            for (let shard of glassShards) {
+                glassCtx.save();
+                glassCtx.translate(shard.x, shard.y);
+                glassCtx.rotate(shard.rotation);
+
+                glassCtx.fillStyle = shard.isGlowing ? `rgba(255, 250, 237, ${shard.opacity})` : `rgba(204, 204, 204, ${shard.opacity})`;
+                glassCtx.strokeStyle = `rgba(255, 255, 255, ${shard.opacity * 1.2})`;
+                glassCtx.lineWidth = 1;
+
+                glassCtx.beginPath();
+                glassCtx.moveTo(0, -shard.size);
+                glassCtx.lineTo(shard.size * 0.8, shard.size * 0.6);
+                glassCtx.lineTo(-shard.size * 0.7, shard.size * 0.5);
+                glassCtx.closePath();
+                glassCtx.fill();
+                glassCtx.stroke();
+
+                glassCtx.restore();
+
+                shard.y += shard.speedY;
+                shard.x += shard.speedX;
+                shard.rotation += shard.rotSpeed;
+
+                if (shard.y > window.innerHeight + 20) {
+                    shard.y = -20;
+                    shard.x = Math.random() * window.innerWidth;
+                }
+                if (shard.x < -20) shard.x = window.innerWidth + 20;
+                if (shard.x > window.innerWidth + 20) shard.x = -20;
+            }
+            requestAnimationFrame(animateGlassShards);
+        }
+        animateGlassShards();
+
+        let scene, camera, renderer;
+        let ground, ball;
+        let ambientLight, roofLights = [], lightPoleButton, courtGoalControls = [];
+        let roofLightMeshes = []; 
+        let backboards = []; 
+        let rims = [];
+        let nets = [];
+        let isNightMode = false;
+        let lightsOn = false;
+
+        let isHoldingBall = true;
+        let ballVelocity = new THREE.Vector3();
+        let ballAngularVelocity = new THREE.Vector3();
+        let shotClearedTimer = 0; 
+        
+        const GRAVITY = 25;
+        const PICKUP_DISTANCE = 5.5;
+        const BASE_THROW_FORCE = 12;
+        const MAX_THROW_FORCE = 32;
+        let isAutoDribbling = false;
+        let dribbleTimer = 0;
+        let footstepTimer = 0;
+
+        let isChargingShot = false;
+        let shotChargePower = 0; 
+        const CHARGE_SPEED = 1.1;
+
+        let isInversionMode = false;
+        let floorBalls = [];
+        let regularBallMaterial, androidBallMaterial;
+        let pendingAndroidSpawnTimeout = null;
+
+        // Glass & spark debris particle systems
+        let debrisParticles = [];
+
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playBounceSound(intensity = 1.0) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.12);
+            gain.gain.setValueAtTime(0.6 * intensity, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.12);
+        }
+
+        function playSwishSound() {
+            if (!audioCtx) return;
+            const bufferSize = audioCtx.sampleRate * 0.35;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1200, audioCtx.currentTime);
+            filter.frequency.linearRampToValueAtTime(300, audioCtx.currentTime + 0.35);
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            noise.start();
+        }
+
+        function playStepSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(80, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.08);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.08);
+        }
+
+        function playShootSound() {
+            if (!audioCtx) return;
+            const bufferSize = audioCtx.sampleRate * 0.25;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+            filter.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.25);
+            filter.Q.value = 3;
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            noise.start();
+        }
+
+        function playGlassShatterSound() {
+            if (!audioCtx) return;
+            const bufferSize = audioCtx.sampleRate * 0.5;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.15));
+            }
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.setValueAtTime(2500, audioCtx.currentTime);
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.7, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            noise.start();
+        }
+
+        const powerRingElem = document.getElementById('power-ring');
+        const powerProgressElem = document.getElementById('power-progress');
+        const POWER_CIRCUMFERENCE = 2 * Math.PI * 26;
+
+        const playerPosition = new THREE.Vector3(-14, 1.7, 3);
+        let cameraYaw = -Math.PI / 4;   
+        let cameraPitch = 0; 
+        
+        let playerVelocityY = 0;
+        let isJumping = false;
+        const jumpBtn = document.getElementById('jump-btn');
+
+        let moveTouchId = null;
+        let lookTouchId = null;
+        let actionTouchId = null;
+        let moveTouchStart = { x: 0, y: 0 };
+        let moveInput = { x: 0, y: 0 };
+        let lastLookPos = { x: 0, y: 0 };
+
+        let prevTime = performance.now();
+
+        const instructions = document.getElementById('instructions');
+        const startBtn = document.getElementById('start-btn');
+        const actionBtn = document.getElementById('action-btn');
+        const dribbleBtn = document.getElementById('dribble-btn');
+        const nightModeBtn = document.getElementById('night-mode-btn');
+        const androidToggleBtn = document.getElementById('android-toggle-btn');
+        const touchContainer = document.getElementById('touch-controls');
+        const joystickBase = document.getElementById('joystick-base');
+        const joystickStick = document.getElementById('joystick-stick');
+        const interactionOverlay = document.getElementById('interaction-overlay');
+
+        let interactiveObjects = [];
+
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb);
+            scene.fog = new THREE.FogExp2(0x87ceeb, 0.012);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.rotation.order = 'YXZ';
+
+            renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+            document.body.appendChild(renderer.domElement);
+
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+
+            const sunLight = new THREE.DirectionalLight(0xfffaed, 1.0);
+            sunLight.position.set(30, 60, 30);
+            scene.add(sunLight);
+
+            const grassGeo = new THREE.PlaneGeometry(300, 300);
+            const grassMat = new THREE.MeshLambertMaterial({ color: 0x336622 });
+            const grass = new THREE.Mesh(grassGeo, grassMat);
+            grass.rotation.x = -Math.PI / 2;
+            scene.add(grass);
+
+            const courtCanvas = document.createElement('canvas');
+            courtCanvas.width = 1024;
+            courtCanvas.height = 2048;
+            const ctxC = courtCanvas.getContext('2d');
+            ctxC.fillStyle = '#d29054';
+            ctxC.fillRect(0, 0, 1024, 2048);
+            ctxC.fillStyle = 'rgba(0, 0, 0, 0.03)';
+            for (let x = 0; x < 1024; x += 32) ctxC.fillRect(x, 0, 16, 2048);
+            ctxC.fillStyle = '#1b4f72';
+            ctxC.fillRect(1024 / 2 - 90, 0, 180, 260);         
+            ctxC.fillRect(1024 / 2 - 90, 2048 - 260, 180, 260); 
+            ctxC.strokeStyle = '#ffffff';
+            ctxC.lineWidth = 10;
+            ctxC.strokeRect(60, 60, 1024 - 120, 2048 - 120);
+            ctxC.beginPath();
+            ctxC.moveTo(60, 2048 / 2);
+            ctxC.lineTo(1024 - 60, 2048 / 2);
+            ctxC.stroke();
+            ctxC.beginPath();
+            ctxC.arc(1024 / 2, 2048 / 2, 130, 0, Math.PI * 2);
+            ctxC.stroke();
+            ctxC.beginPath();
+            ctxC.arc(1024 / 2, 260, 130, 0, Math.PI, false);
+            ctxC.stroke();
+            ctxC.beginPath();
+            ctxC.arc(1024 / 2, 2048 - 260, 130, Math.PI, Math.PI * 2, false);
+            ctxC.stroke();
+
+            const courtTex = new THREE.CanvasTexture(courtCanvas);
+            const courtGeo = new THREE.PlaneGeometry(28, 52);
+            const courtMat = new THREE.MeshLambertMaterial({ map: courtTex });
+            const court = new THREE.Mesh(courtGeo, courtMat);
+            court.rotation.x = -Math.PI / 2;
+            court.position.y = 0.02;
+            scene.add(court);
+
+            buildMetalRoofAndLights();
+            buildCinderBlockWalls();
+            buildBasketballGoal(0, 24, Math.PI, "north");
+            buildBasketballGoal(0, -24, 0, "south");
+
+            const ballRadius = 0.40;
+            const ballGeo = new THREE.SphereGeometry(ballRadius, 16, 16);
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 128;
+            let ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#d35400';
+            ctx.fillRect(0, 0, 256, 128);
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(128, 64, 50, 0, Math.PI * 2);
+            ctx.moveTo(0, 64); ctx.lineTo(256, 64);
+            ctx.moveTo(128, 0); ctx.lineTo(128, 128);
+            ctx.stroke();
+            const ballTex = new THREE.CanvasTexture(canvas);
+            regularBallMaterial = new THREE.MeshLambertMaterial({ map: ballTex });
+
+            const androidCanvas = document.createElement('canvas');
+            androidCanvas.width = 256; androidCanvas.height = 128;
+            let androidCtx = androidCanvas.getContext('2d');
+            androidCtx.fillStyle = '#000000';
+            androidCtx.fillRect(0, 0, 256, 128);
+            androidCtx.strokeStyle = '#3DDC84';
+            androidCtx.lineWidth = 6;
+            androidCtx.beginPath();
+            androidCtx.arc(128, 64, 50, 0, Math.PI * 2);
+            androidCtx.moveTo(0, 64); androidCtx.lineTo(256, 64);
+            androidCtx.moveTo(128, 0); androidCtx.lineTo(128, 128);
+            androidCtx.stroke();
+            const androidBallTex = new THREE.CanvasTexture(androidCanvas);
+            androidBallMaterial = new THREE.MeshLambertMaterial({ map: androidBallTex });
+
+            ball = new THREE.Mesh(ballGeo, regularBallMaterial);
+            ball.position.set(4, ballRadius, 4);
+            scene.add(ball);
+
+            setupTouchEvents();
+
+            startBtn.addEventListener('click', () => {
+                initAudio();
+                instructions.style.display = 'none';
+            });
+
+            actionBtn.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+                initAudio();
+                
+                const raycaster = new THREE.Raycaster();
+                raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+                const intersects = raycaster.intersectObjects(interactiveObjects);
+
+                if (intersects.length > 0 && intersects[0].distance < PICKUP_DISTANCE) {
+                    const obj = intersects[0].object;
+                    if (obj.userData.type === 'lightSwitch') {
+                        toggleLights();
+                        return;
+                    } else if (obj.userData.type === 'goalControl') {
+                        toggleGoal(obj);
+                        return;
+                    }
+                }
+
+                if (isHoldingBall) {
+                    isChargingShot = true;
+                    shotChargePower = 0.05;
+                    powerRingElem.style.display = 'block';
+                } else {
+                    const distance = camera.position.distanceTo(ball.position);
+                    if (distance <= PICKUP_DISTANCE) {
+                        isHoldingBall = true;
+                        ballAngularVelocity.set(0, 0, 0);
+                        ball.rotation.set(0, 0, 0);
+                    } else if (isInversionMode) {
+                        for (let i = floorBalls.length - 1; i >= 0; i--) {
+                            if (camera.position.distanceTo(floorBalls[i].position) <= PICKUP_DISTANCE) {
+                                const picked = floorBalls.splice(i, 1)[0];
+                                scene.remove(picked);
+                                
+                                if (pendingAndroidSpawnTimeout) {
+                                    clearTimeout(pendingAndroidSpawnTimeout);
+                                    pendingAndroidSpawnTimeout = null;
+                                }
+
+                                const ballGeo = new THREE.SphereGeometry(0.40, 16, 16);
+                                ball = new THREE.Mesh(ballGeo, androidBallMaterial);
+                                scene.add(ball);
+                                isHoldingBall = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
+
+            window.addEventListener('pointerup', (e) => {
+                if (isChargingShot) {
+                    releaseShot();
+                }
+            });
+
+            jumpBtn.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+                initAudio();
+                if (!isJumping) {
+                    isJumping = true;
+                    playerVelocityY = 8.5;
+                }
+            });
+
+            dribbleBtn.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+                initAudio();
+                if (isHoldingBall) {
+                    isAutoDribbling = !isAutoDribbling;
+                }
+            });
+
+            nightModeBtn.addEventListener('click', () => {
+                initAudio();
+                toggleNightMode();
+            });
+
+            androidToggleBtn.addEventListener('click', () => {
+                initAudio();
+                toggleColorInversionMode();
+            });
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function toggleColorInversionMode() {
+            isInversionMode = !isInversionMode;
+            if (pendingAndroidSpawnTimeout) {
+                clearTimeout(pendingAndroidSpawnTimeout);
+                pendingAndroidSpawnTimeout = null;
+            }
+            if (isInversionMode) {
+                androidToggleBtn.classList.add('active');
+                ball.material = androidBallMaterial;
+                isHoldingBall = true;
+                isAutoDribbling = false;
+            } else {
+                androidToggleBtn.classList.remove('active');
+                floorBalls.forEach(b => scene.remove(b));
+                floorBalls = [];
+                scene.remove(ball);
+
+                const ballGeo = new THREE.SphereGeometry(0.40, 16, 16);
+                ball = new THREE.Mesh(ballGeo, regularBallMaterial);
+                ball.position.set(4, 0.4, 4);
+                scene.add(ball);
+
+                isHoldingBall = true;
+                ballVelocity.set(0, 0, 0);
+                ballAngularVelocity.set(0, 0, 0);
+            }
+        }
+
+        function releaseShot(canceled = false) {
+            if (!isChargingShot) return;
+            isChargingShot = false;
+            powerRingElem.style.display = 'none';
+
+            if (canceled) return;
+
+            const cameraDirection = new THREE.Vector3();
+            camera.getWorldDirection(cameraDirection);
+            const currentThrowForce = THREE.MathUtils.lerp(BASE_THROW_FORCE, MAX_THROW_FORCE, shotChargePower);
+
+            if (isInversionMode) {
+                const shotBall = ball;
+                isHoldingBall = false;
+                shotBall.position.copy(camera.position).add(cameraDirection.clone().multiplyScalar(1.2));
+                
+                shotBall.userData.velocity = new THREE.Vector3();
+                shotBall.userData.velocity.copy(cameraDirection).multiplyScalar(currentThrowForce);
+                shotBall.userData.velocity.y += 4.5 + (shotChargePower * 3.5) + (playerVelocityY > 0 ? playerVelocityY * 0.4 : 0);
+                shotBall.userData.angularVelocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 5,
+                    (Math.random() - 0.5) * 5,
+                    15 + Math.random() * 5
+                );
+                shotBall.userData.isMoving = true;
+                shotBall.userData.clearedTimer = 0;
+
+                floorBalls.push(shotBall);
+
+                if (floorBalls.length > 8) {
+                    const oldest = floorBalls.shift();
+                    scene.remove(oldest);
+                }
+
+                if (pendingAndroidSpawnTimeout) {
+                    clearTimeout(pendingAndroidSpawnTimeout);
+                }
+                pendingAndroidSpawnTimeout = setTimeout(() => {
+                    pendingAndroidSpawnTimeout = null;
+                    if (isInversionMode) {
+                        const ballGeo = new THREE.SphereGeometry(0.40, 16, 16);
+                        ball = new THREE.Mesh(ballGeo, androidBallMaterial);
+                        scene.add(ball);
+                        isHoldingBall = true;
+                    }
+                }, 2000);
+
+            } else {
+                isHoldingBall = false;
+                isAutoDribbling = false;
+                shotClearedTimer = 0; 
+
+                ball.position.copy(camera.position).add(cameraDirection.clone().multiplyScalar(1.2));
+                
+                ballVelocity.copy(cameraDirection).multiplyScalar(currentThrowForce);
+                ballVelocity.y += 4.5 + (shotChargePower * 3.5) + (playerVelocityY > 0 ? playerVelocityY * 0.4 : 0);
+
+                ballAngularVelocity.set(
+                    (Math.random() - 0.5) * 5,
+                    (Math.random() - 0.5) * 5,
+                    15 + Math.random() * 5
+                );
+            }
+
+            playShootSound();
+            shotChargePower = 0;
+        }
+
+        function buildMetalRoofAndLights() {
+            const roofMat = new THREE.MeshLambertMaterial({ color: 0x7f8c8d });
+            const roofGeo = new THREE.BoxGeometry(36, 0.5, 60);
+            const roof = new THREE.Mesh(roofGeo, roofMat);
+            roof.position.set(0, 18, 0);
+            scene.add(roof);
+
+            const poleMat = new THREE.MeshLambertMaterial({ color: 0x2c3e50 });
+            const poleGeo = new THREE.CylinderGeometry(0.5, 0.5, 18, 8);
+            const positions = [[-18, 28], [18, 28], [-18, -28], [18, -28], [-18, 0], [18, 0]];
+            positions.forEach(pos => {
+                const pole = new THREE.Mesh(poleGeo, poleMat);
+                pole.position.set(pos[0], 9, pos[1]);
+                scene.add(pole);
+            });
+
+            const lightPositions = [[0, 17.5, 15], [0, 17.5, -15], [0, 17.5, 0]];
+            lightPositions.forEach(pos => {
+                const pointLight = new THREE.PointLight(0xfff5cc, 0, 45);
+                pointLight.position.set(pos[0], pos[1], pos[2]);
+                scene.add(pointLight);
+                roofLights.push(pointLight);
+
+                const fixtureGeo = new THREE.BoxGeometry(2, 0.2, 2);
+                const fixtureMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+                const fixture = new THREE.Mesh(fixtureGeo, fixtureMat);
+                fixture.position.set(pos[0], pos[1] + 0.2, pos[2]);
+                fixture.userData = { isBroken: false, lightRef: pointLight, originalPos: new THREE.Vector3(pos[0], pos[1], pos[2]) };
+                scene.add(fixture);
+                roofLightMeshes.push(fixture);
+            });
+
+            const switchPoleGeo = new THREE.CylinderGeometry(0.2, 0.2, 4, 6);
+            const switchPole = new THREE.Mesh(switchPoleGeo, poleMat);
+            switchPole.position.set(-18.5, 2, 2);
+            scene.add(switchPole);
+
+            const btnGeo = new THREE.BoxGeometry(0.6, 0.6, 0.3);
+            const btnMat = new THREE.MeshLambertMaterial({ color: 0xc0392b });
+            lightPoleButton = new THREE.Mesh(btnGeo, btnMat);
+            lightPoleButton.position.set(-18.1, 2.5, 2);
+            lightPoleButton.userData = { type: 'lightSwitch' };
+            scene.add(lightPoleButton);
+            interactiveObjects.push(lightPoleButton);
+        }
+
+        function shatterLight(fixtureMesh) {
+            if (fixtureMesh.userData.isBroken) return;
+            fixtureMesh.userData.isBroken = true;
+            fixtureMesh.userData.lightRef.intensity = 0;
+            fixtureMesh.material.color.setHex(0x111111);
+            playGlassShatterSound();
+
+            const worldPos = fixtureMesh.position;
+            const particleCount = 18;
+            for (let i = 0; i < particleCount; i++) {
+                const pGeo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+                const isGlowing = Math.random() > 0.4;
+                const pMat = new THREE.MeshBasicMaterial({ 
+                    color: isGlowing ? 0xfffaed : 0xcccccc 
+                });
+                const shard = new THREE.Mesh(pGeo, pMat);
+                shard.position.copy(worldPos);
+
+                const speed = 2 + Math.random() * 5;
+                const angle = Math.random() * Math.PI * 2;
+                const velY = 1 + Math.random() * 4;
+                
+                shard.userData = {
+                    velocity: new THREE.Vector3(Math.cos(angle) * speed, velY, Math.sin(angle) * speed),
+                    life: 1.5 + Math.random() * 1.0
+                };
+                scene.add(shard);
+                debrisParticles.push(shard);
+            }
+        }
+
+        function buildCinderBlockWalls() {
+            const blockMat = new THREE.MeshLambertMaterial({ color: 0x95a5a6 });
+            [27, -27].forEach(zPos => {
+                const wallGeo = new THREE.BoxGeometry(36, 8, 1.5);
+                const wall = new THREE.Mesh(wallGeo, blockMat);
+                wall.position.set(0, 4, zPos);
+                scene.add(wall);
+            });
+        }
+
+        function updateScoreboardTexture(canvas, ctx, score) {
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, 256, 128);
+            ctx.fillStyle = '#ff3333';
+            ctx.font = 'bold 70px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(score, 128, 64);
+            canvas.texture.needsUpdate = true;
+        }
+
+        function buildBasketballGoal(x, z, rotationY, idTag) {
+            const pivotGroup = new THREE.Group();
+            pivotGroup.position.set(x, 18, z);
+            pivotGroup.rotation.y = rotationY;
+            
+            const defaultRaisedAngle = (rotationY === Math.PI) ? 0.75 : -0.75;
+            pivotGroup.rotation.x = defaultRaisedAngle;
+
+            const innerGroup = new THREE.Group();
+            innerGroup.position.set(0, -18, 0);
+
+            const poleMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+            const poleGeo = new THREE.CylinderGeometry(0.08, 0.08, 9.5, 6);
+            const leftPole = new THREE.Mesh(poleGeo, poleMat);
+            leftPole.position.set(-1.6, 13.25, 3.2);
+            const rightPole = new THREE.Mesh(poleGeo, poleMat);
+            rightPole.position.set(1.6, 13.25, 3.2);
+            innerGroup.add(leftPole, rightPole);
+
+            const assembly = new THREE.Group();
+
+            const connectorGeo = new THREE.BoxGeometry(0.15, 0.15, 0.6);
+            const metalMat = new THREE.MeshLambertMaterial({ color: 0x34495e });
+            const leftConnector = new THREE.Mesh(connectorGeo, metalMat);
+            leftConnector.position.set(-1.6, 8.5, 3.5);
+            const rightConnector = new THREE.Mesh(connectorGeo, metalMat);
+            rightConnector.position.set(1.6, 8.5, 3.5);
+            assembly.add(leftConnector, rightConnector);
+
+            const boardGeo = new THREE.BoxGeometry(3.9, 2.6, 0.15);
+            const boardMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            const board = new THREE.Mesh(boardGeo, boardMat);
+            board.position.set(0, 8.5, 3.8);
+            assembly.add(board);
+
+            const scoreCanvas = document.createElement('canvas');
+            scoreCanvas.width = 256;
+            scoreCanvas.height = 128;
+            const sCtx = scoreCanvas.getContext('2d');
+            const scoreTex = new THREE.CanvasTexture(scoreCanvas);
+            scoreCanvas.texture = scoreTex;
+            updateScoreboardTexture(scoreCanvas, sCtx, 0);
+
+            const scoreGeo = new THREE.PlaneGeometry(0.8, 0.4);
+            const scoreMat = new THREE.MeshBasicMaterial({ map: scoreTex });
+            const scoreMesh = new THREE.Mesh(scoreGeo, scoreMat);
+            scoreMesh.position.set(1.4, 9.5, 3.89);
+            assembly.add(scoreMesh);
+
+            backboards.push({
+                mesh: board,
+                pivotRef: pivotGroup,
+                scoreCanvas: scoreCanvas,
+                scoreCtx: sCtx,
+                score: 0
+            });
+
+            const squareGeo = new THREE.BoxGeometry(1.0, 0.75, 0.02);
+            const squareMat = new THREE.MeshBasicMaterial({ color: 0xe74c3c });
+            const aimSquare = new THREE.Mesh(squareGeo, squareMat);
+            aimSquare.position.set(0, 8.2, 3.89);
+            assembly.add(aimSquare);
+
+            const rimRadius = 0.60;
+            const rimGeo = new THREE.TorusGeometry(rimRadius, 0.04, 8, 16);
+            const rimMat = new THREE.MeshLambertMaterial({ color: 0xd35400 });
+            const rim = new THREE.Mesh(rimGeo, rimMat);
+            rim.rotation.x = Math.PI / 2;
+            rim.position.set(0, 7.35, 4.25);
+            assembly.add(rim);
+
+            rims.push({
+                mesh: rim,
+                pivotRef: pivotGroup
+            });
+
+            const netGroup = new THREE.Group();
+            netGroup.position.set(0, 7.35, 4.25);
+            const netMat = new THREE.MeshBasicMaterial({ color: 0xf5f5f5 });
+            
+            const netRings = 4;
+            const netSegments = 12;
+            const netHeight = 0.85;
+            
+            for (let r = 0; r < netRings; r++) {
+                const ringY = - (r / (netRings - 1)) * netHeight;
+                const rRadius = rimRadius * (1.0 - (r / (netRings - 1)) * 0.35);
+                const ringGeo = new THREE.TorusGeometry(rRadius, 0.012, 4, netSegments);
+                const ringMesh = new THREE.Mesh(ringGeo, netMat);
+                ringMesh.rotation.x = Math.PI / 2;
+                ringMesh.position.y = ringY;
+                netGroup.add(ringMesh);
+            }
+
+            for (let s = 0; s < netSegments; s++) {
+                const angle = (s / netSegments) * Math.PI * 2;
+                const nextAngle = ((s + 1) / netSegments) * Math.PI * 2;
+                const x1 = Math.cos(angle) * rimRadius;
+                const z1 = Math.sin(angle) * rimRadius;
+                const x2 = Math.cos(nextAngle) * (rimRadius * 0.65);
+                const z2 = Math.sin(nextAngle) * (rimRadius * 0.65);
+
+                const stringGeo = new THREE.CylinderGeometry(0.01, 0.01, netHeight, 4);
+                const stringMesh = new THREE.Mesh(stringGeo, netMat);
+                stringMesh.position.set((x1 + x2)/2, -netHeight/2, (z1 + z2)/2);
+                stringMesh.rotation.z = (x1 - x2) * 0.5;
+                stringMesh.rotation.x = (z2 - z1) * 0.5;
+                netGroup.add(stringMesh);
+            }
+
+            assembly.add(netGroup);
+            nets.push({
+                mesh: netGroup,
+                basePos: netGroup.position.clone(),
+                velocity: new THREE.Vector3()
+            });
+
+            innerGroup.add(assembly);
+            pivotGroup.add(innerGroup);
+            scene.add(pivotGroup);
+
+            pivotGroup.userData = {
+                isRaising: false,
+                targetRotationX: defaultRaisedAngle,
+                raiseState: 1,
+                isNorth: (rotationY === Math.PI)
+            };
+
+            const btnPole = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 2.5, 6), metalMat);
+            btnPole.position.set(x === 0 ? 3.5 : -3.5, 1.25, z + (z > 0 ? -1.5 : 1.5));
+            scene.add(btnPole);
+
+            const interactBtn = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.2), new THREE.MeshLambertMaterial({ color: 0x3498db }));
+            interactBtn.position.set(x === 0 ? 3.3 : -3.3, 2.0, z + (z > 0 ? -1.5 : 1.5));
+            interactBtn.userData = { type: 'goalControl', pivotGroup: pivotGroup };
+            scene.add(interactBtn);
+            interactiveObjects.push(interactBtn);
+            courtGoalControls.push(interactBtn);
+        }
+
+        function setupTouchEvents() {
+            touchContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
+            touchContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
+            touchContainer.addEventListener('touchend', handleTouchEnd, { passive: false });
+            touchContainer.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            const halfWidth = window.innerWidth / 2;
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+
+                if (touch.clientX < halfWidth && moveTouchId === null) {
+                    moveTouchId = touch.identifier;
+                    moveTouchStart = { x: touch.clientX, y: touch.clientY };
+                    moveInput = { x: 0, y: 0 };
+
+                    joystickBase.style.display = 'block';
+                    joystickBase.style.left = touch.clientX + 'px';
+                    joystickBase.style.top = touch.clientY + 'px';
+                    joystickStick.style.transform = 'translate(-50%, -50%)';
+                }
+                else if (touch.clientX >= halfWidth && lookTouchId === null) {
+                    lookTouchId = touch.identifier;
+                    lastLookPos = { x: touch.clientX, y: touch.clientY };
+                }
+            }
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+
+                if (touch.identifier === moveTouchId) {
+                    const deltaX = touch.clientX - moveTouchStart.x;
+                    const deltaY = touch.clientY - moveTouchStart.y;
+                    const maxRadius = 40;
+
+                    const distance = Math.min(Math.hypot(deltaX, deltaY), maxRadius);
+                    const angle = Math.atan2(deltaY, deltaX);
+
+                    const stickX = Math.cos(angle) * distance;
+                    const stickY = Math.sin(angle) * distance;
+
+                    joystickStick.style.transform = `translate(calc(-50% + ${stickX}px), calc(-50% + ${stickY}px))`;
+                    moveInput.x = stickX / maxRadius;
+                    moveInput.y = stickY / maxRadius;
+                }
+
+                if (touch.identifier === lookTouchId) {
+                    const deltaX = touch.clientX - lastLookPos.x;
+                    const deltaY = touch.clientY - lastLookPos.y;
+
+                    const sensitivity = 0.005;
+                    cameraYaw -= deltaX * sensitivity;
+                    cameraPitch -= deltaY * sensitivity;
+                    cameraPitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, cameraPitch));
+
+                    lastLookPos = { x: touch.clientX, y: touch.clientY };
+                }
+            }
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+
+                if (touch.identifier === moveTouchId) {
+                    moveTouchId = null;
+                    moveInput = { x: 0, y: 0 };
+                    joystickBase.style.display = 'none';
+                }
+                if (touch.identifier === lookTouchId) {
+                    lookTouchId = null;
+                }
+            }
+        }
+
+        function toggleLights() {
+            lightsOn = !lightsOn;
+            roofLights.forEach((light, idx) => {
+                if (!roofLightMeshes[idx].userData.isBroken) {
+                    light.intensity = lightsOn ? (isNightMode ? 2.5 : 1.5) : 0;
+                }
+            });
+            roofLightMeshes.forEach((mesh) => {
+                if (!mesh.userData.isBroken) {
+                    mesh.material.color.setHex(lightsOn ? 0xffffaa : 0x333333);
+                }
+            });
+            lightPoleButton.material.color.setHex(lightsOn ? 0x27ae60 : 0xc0392b);
+        }
+
+        function toggleGoal(buttonObj) {
+            const pivot = buttonObj.userData.pivotGroup;
+            pivot.userData.raiseState = pivot.userData.raiseState === 0 ? 1 : 0;
+            
+            if (pivot.userData.isNorth) {
+                pivot.userData.targetRotationX = pivot.userData.raiseState === 1 ? 0.75 : 0;
+            } else {
+                pivot.userData.targetRotationX = pivot.userData.raiseState === 1 ? -0.75 : 0;
+            }
+            pivot.userData.isRaising = true;
+        }
+
+        function toggleNightMode() {
+            isNightMode = !isNightMode;
+            if (isNightMode) {
+                scene.background.setHex(0x050b14);
+                scene.fog.color.setHex(0x050b14);
+                ambientLight.intensity = lightsOn ? 0.3 : 0.05;
+                roofLights.forEach((l, i) => {
+                    if (!roofLightMeshes[i].userData.isBroken) l.intensity = lightsOn ? 2.5 : 0;
+                });
+                nightModeBtn.style.background = "rgba(41, 128, 185, 0.8)";
+                nightModeBtn.textContent = "🌙 NIGHT MODE";
+            } else {
+                scene.background.setHex(0x87ceeb);
+                scene.fog.color.setHex(0x87ceeb);
+                ambientLight.intensity = 0.8;
+                roofLights.forEach((l, i) => {
+                    if (!roofLightMeshes[i].userData.isBroken) l.intensity = lightsOn ? 1.5 : 0;
+                });
+                nightModeBtn.style.background = "rgba(0, 0, 0, 0.6)";
+                nightModeBtn.textContent = "☀️ DAY MODE";
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = performance.now();
+            const delta = (time - prevTime) / 1000;
+            prevTime = time;
+
+            camera.rotation.x = cameraPitch;
+            camera.rotation.y = cameraYaw;
+
+            let isMoving = (Math.abs(moveInput.x) > 0.05 || Math.abs(moveInput.y) > 0.05);
+
+            if (isChargingShot) {
+                shotChargePower += delta / CHARGE_SPEED;
+                if (shotChargePower >= 1.0) {
+                    releaseShot(false);
+                } else {
+                    let powerDashOffset = POWER_CIRCUMFERENCE * (1 - shotChargePower);
+                    powerProgressElem.style.strokeDashoffset = powerDashOffset;
+                }
+            }
+
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            const intersects = raycaster.intersectObjects(interactiveObjects);
+            let activePromptText = null;
+
+            if (intersects.length > 0 && intersects[0].distance < PICKUP_DISTANCE) {
+                const obj = intersects[0].object;
+                if (obj.userData.type === 'lightSwitch') {
+                    activePromptText = lightsOn ? 'Press X to Turn Off Lights' : 'Press X to Turn On Lights';
+                } else if (obj.userData.type === 'goalControl') {
+                    const pivot = obj.userData.pivotGroup;
+                    activePromptText = pivot.userData.raiseState === 0 ? 'Press X to Raise Goal' : 'Press X to Lower Goal';
+                }
+            }
+
+            if (activePromptText) {
+                interactionOverlay.style.display = 'block';
+                interactionOverlay.textContent = activePromptText;
+            } else {
+                interactionOverlay.style.display = 'none';
+            }
+
+            interactiveObjects.forEach(obj => {
+                if (obj.userData.type === 'goalControl') {
+                    const pivot = obj.userData.pivotGroup;
+                    if (pivot.userData.isRaising) {
+                        pivot.rotation.x = THREE.MathUtils.lerp(pivot.rotation.x, pivot.userData.targetRotationX, delta * 3.5);
+                        if (Math.abs(pivot.rotation.x - pivot.userData.targetRotationX) < 0.005) {
+                            pivot.rotation.x = pivot.userData.targetRotationX;
+                            pivot.userData.isRaising = false;
+                        }
+                    }
+                }
+            });
+
+            nets.forEach(n => {
+                n.mesh.position.lerp(n.basePos, delta * 5);
+                n.mesh.rotation.x = THREE.MathUtils.lerp(n.mesh.rotation.x, 0, delta * 5);
+                n.mesh.rotation.z = THREE.MathUtils.lerp(n.mesh.rotation.z, 0, delta * 5);
+            });
+
+            if (isJumping) {
+                playerVelocityY -= GRAVITY * delta;
+                playerPosition.y += playerVelocityY * delta;
+                if (playerPosition.y <= 1.7) {
+                    playerPosition.y = 1.7;
+                    isJumping = false;
+                    playerVelocityY = 0;
+                }
+            }
+
+            if (isMoving) {
+                let baseSpeed = 6.5;
+                const moveSpeed = baseSpeed * delta;
+                const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
+                const side = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
+
+                playerPosition.addScaledVector(forward, -moveInput.y * moveSpeed);
+                playerPosition.addScaledVector(side, moveInput.x * moveSpeed);
+
+                if (!isJumping) {
+                    footstepTimer += delta * 6;
+                    if (footstepTimer >= Math.PI) {
+                        playStepSound();
+                        footstepTimer = 0;
+                    }
+                }
+            }
+            camera.position.copy(playerPosition);
+
+            // Update debris particles
+            for (let i = debrisParticles.length - 1; i >= 0; i--) {
+                const p = debrisParticles[i];
+                p.userData.life -= delta;
+                if (p.userData.life <= 0 || p.position.y <= 0.1) {
+                    scene.remove(p);
+                    debrisParticles.splice(i, 1);
+                } else {
+                    p.userData.velocity.y -= GRAVITY * delta;
+                    p.position.addScaledVector(p.userData.velocity, delta);
+                    if (p.position.y <= 0.1) p.position.y = 0.1;
+                }
+            }
+
+            if (!isHoldingBall && !isInversionMode) {
+                const playerXZ = new THREE.Vector3(playerPosition.x, 0, playerPosition.z);
+                const ballXZ = new THREE.Vector3(ball.position.x, 0, ball.position.z);
+                const distToPlayer = playerXZ.distanceTo(ballXZ);
+                const collisionDist = 0.40 + 0.55; 
+
+                if (distToPlayer < collisionDist) {
+                    const pushDir = ballXZ.clone().sub(playerXZ).normalize();
+                    if (pushDir.lengthSq() === 0) pushDir.set(0, 0, 1);
+                    
+                    ball.position.x = playerPosition.x + pushDir.x * collisionDist;
+                    ball.position.z = playerPosition.z + pushDir.z * collisionDist;
+
+                    const pushForce = isMoving ? 7 : 4;
+                    ballVelocity.x = pushDir.x * pushForce;
+                    ballVelocity.z = pushDir.z * pushForce;
+                    ballAngularVelocity.x += pushDir.z * 10;
+                    ballAngularVelocity.z -= pushDir.x * 10;
+                    playBounceSound(0.3);
+                }
+            }
+
+            if (isHoldingBall) {
+                if (isAutoDribbling) {
+                    dribbleTimer += delta * 7;
+                    const bounceHeight = Math.abs(Math.sin(dribbleTimer)) * 0.9 + 0.4;
+                    
+                    if (Math.sin(dribbleTimer) < 0.1 && Math.sin(dribbleTimer - delta * 7) >= 0.1) {
+                        playBounceSound(0.4);
+                    }
+
+                    const holdOffset = new THREE.Vector3(0.4, bounceHeight - 1.2, -0.9);
+                    holdOffset.applyQuaternion(camera.quaternion);
+                    ball.position.copy(camera.position).add(holdOffset);
+                } else {
+                    const holdOffset = new THREE.Vector3(0.4, -0.4 + (playerPosition.y - 1.7), -0.9);
+                    holdOffset.applyQuaternion(camera.quaternion);
+                    ball.position.copy(camera.position).add(holdOffset);
+                }
+                ball.rotation.set(0, 0, 0);
+            } else if (!isInversionMode) {
+                updateSingleBall(ball, ballVelocity, ballAngularVelocity, delta, 0);
+            }
+
+            if (isInversionMode) {
+                for (let i = 0; i < floorBalls.length; i++) {
+                    if (floorBalls[i].userData.isMoving) {
+                        updateFloorBallPhysics(floorBalls[i], delta);
+                    }
+                }
+                for (let i = 0; i < floorBalls.length; i++) {
+                    for (let j = i + 1; j < floorBalls.length; j++) {
+                        const b1 = floorBalls[i];
+                        const b2 = floorBalls[j];
+                        const minDist = 0.80;
+                        const dist = b1.position.distanceTo(b2.position);
+                        if (dist < minDist) {
+                            const normal = b2.position.clone().sub(b1.position).normalize();
+                            const overlap = minDist - dist;
+                            b1.position.addScaledVector(normal, -overlap * 0.5);
+                            b2.position.addScaledVector(normal, overlap * 0.5);
+
+                            const relVel = b2.userData.velocity.clone().sub(b1.userData.velocity);
+                            const velAlongNormal = relVel.dot(normal);
+
+                            if (velAlongNormal < 0) {
+                                const restitution = 0.7;
+                                const impulseScalar = -(1 + restitution) * velAlongNormal / 2;
+                                b1.userData.velocity.addScaledVector(normal, -impulseScalar);
+                                b2.userData.velocity.addScaledVector(normal, impulseScalar);
+                                playBounceSound(0.4);
+                            }
+                        }
+                    }
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function checkLightCollision(ballPos) {
+            roofLightMeshes.forEach(mesh => {
+                if (!mesh.userData.isBroken) {
+                    const dist = ballPos.distanceTo(mesh.position);
+                    if (dist < 1.4) {
+                        shatterLight(mesh);
+                    }
+                }
+            });
+        }
+
+        function updateFloorBallPhysics(b, delta) {
+            b.rotation.x += b.userData.angularVelocity.x * delta;
+            b.rotation.y += b.userData.angularVelocity.y * delta;
+            b.rotation.z += b.userData.angularVelocity.z * delta;
+            b.userData.angularVelocity.multiplyScalar(0.98);
+
+            if (b.position.y > 0.4 || b.userData.velocity.lengthSq() > 0.01) {
+                b.userData.velocity.y -= GRAVITY * delta;
+
+                b.position.x += b.userData.velocity.x * delta;
+                b.position.y += b.userData.velocity.y * delta;
+                b.position.z += b.userData.velocity.z * delta;
+
+                if (b.userData.clearedTimer > 0) {
+                    b.userData.clearedTimer -= delta;
+                }
+
+                if (b.position.y >= 17.6) {
+                    b.position.y = 17.6;
+                    checkLightCollision(b.position);
+                    if (b.userData.velocity.y > 0) {
+                        b.userData.velocity.y = -b.userData.velocity.y * 0.55;
+                        playBounceSound(0.6);
+                    }
+                }
+
+                const playerCenter = playerPosition.clone().add(new THREE.Vector3(0, 0.8, 0));
+                if (b.position.distanceTo(playerCenter) < 0.9) {
+                    const hitDir = b.position.clone().sub(playerCenter).normalize();
+                    b.userData.velocity.reflect(hitDir).multiplyScalar(0.35); 
+                    playBounceSound(0.35);
+                }
+
+                if (b.position.y <= 0.4) {
+                    b.position.y = 0.4;
+                    let impactVel = Math.abs(b.userData.velocity.y);
+                    if (impactVel > 1.0) {
+                        playBounceSound(Math.min(1.0, impactVel / 15));
+                    }
+                    b.userData.velocity.y = -b.userData.velocity.y * 0.55;
+                    b.userData.velocity.x *= 0.82;
+                    b.userData.velocity.z *= 0.82;
+                    
+                    b.userData.angularVelocity.x += b.userData.velocity.z * 0.5;
+                    b.userData.angularVelocity.z -= b.userData.velocity.x * 0.5;
+                }
+
+                backboards.forEach((bb, idx) => {
+                    const boardWorldPos = new THREE.Vector3();
+                    bb.mesh.getWorldPosition(boardWorldPos);
+                    const boardWorldQuaternion = new THREE.Quaternion();
+                    bb.mesh.getWorldQuaternion(boardWorldQuaternion);
+
+                    const localBallPos = b.position.clone().sub(boardWorldPos);
+                    localBallPos.applyQuaternion(boardWorldQuaternion.clone().invert());
+
+                    if (Math.abs(localBallPos.x) < 1.95 + 0.4 &&
+                        Math.abs(localBallPos.y) < 1.3 + 0.4 &&
+                        Math.abs(localBallPos.z) < 0.075 + 0.4) {
+                        
+                        b.userData.velocity.z = -b.userData.velocity.z * 0.65;
+                        b.position.z += Math.sign(b.userData.velocity.z) * 0.05;
+                        b.userData.angularVelocity.x += (Math.random() - 0.5) * 10;
+                        playBounceSound(0.7);
+                    }
+                });
+
+                rims.forEach((rim, idx) => {
+                    const rimWorldPos = new THREE.Vector3();
+                    rim.mesh.getWorldPosition(rimWorldPos);
+
+                    const dx = b.position.x - rimWorldPos.x;
+                    const dz = b.position.z - rimWorldPos.z;
+                    const horizontalDist = Math.hypot(dx, dz);
+                    const verticalDiff = b.position.y - rimWorldPos.y;
+                    const rRadius = 0.60;
+
+                    if (verticalDiff <= 0.15 && verticalDiff >= -0.25 && b.userData.clearedTimer <= 0) {
+                        if (horizontalDist < rRadius - 0.08) {
+                            b.userData.clearedTimer = 1.2; 
+                            playSwishSound();
+                            
+                            backboards[idx].score++;
+                            updateScoreboardTexture(backboards[idx].scoreCanvas, backboards[idx].scoreCtx, backboards[idx].score);
+
+                            if (nets[idx]) {
+                                nets[idx].velocity.set(b.userData.velocity.x * 0.15, -0.4, b.userData.velocity.z * 0.15);
+                                nets[idx].mesh.position.add(nets[idx].velocity);
+                                nets[idx].mesh.rotation.x = (Math.random() - 0.5) * 0.3;
+                                nets[idx].mesh.rotation.z = (Math.random() - 0.5) * 0.3;
+                            }
+                        } 
+                        else if (horizontalDist >= rRadius - 0.08 && horizontalDist <= rRadius + 0.4 + 0.05) {
+                            const angle = Math.atan2(dz, dx);
+                            b.position.x = rimWorldPos.x + Math.cos(angle) * (rRadius + 0.4 + 0.02);
+                            b.position.z = rimWorldPos.z + Math.sin(angle) * (rRadius + 0.4 + 0.02);
+
+                            const outwardVel = new THREE.Vector3(Math.cos(angle), 0.4, Math.sin(angle));
+                            b.userData.velocity.reflect(outwardVel).multiplyScalar(0.45);
+                            b.userData.velocity.y = Math.abs(b.userData.velocity.y) * 0.35;
+                            b.userData.angularVelocity.x += 15;
+                            playBounceSound(0.85);
+                        }
+                    }
+                });
+
+                if (Math.abs(b.position.z) > 26.0) {
+                    b.userData.velocity.z = -b.userData.velocity.z * 0.75;
+                    b.position.z = Math.sign(b.position.z) * 26.0;
+                }
+                if (Math.abs(b.position.x) > 13.5) {
+                    b.userData.velocity.x = -b.userData.velocity.x * 0.75;
+                    b.position.x = Math.sign(b.position.x) * 13.5;
+                }
+            }
+        }
+
+        function updateSingleBall(activeBall, vel, angVel, delta, goalIdx) {
+            activeBall.rotation.x += angVel.x * delta;
+            activeBall.rotation.y += angVel.y * delta;
+            activeBall.rotation.z += angVel.z * delta;
+            angVel.multiplyScalar(0.98);
+
+            if (activeBall.position.y > 0.4 || vel.lengthSq() > 0.01) {
+                vel.y -= GRAVITY * delta;
+
+                activeBall.position.x += vel.x * delta;
+                activeBall.position.y += vel.y * delta;
+                activeBall.position.z += vel.z * delta;
+
+                if (shotClearedTimer > 0) {
+                    shotClearedTimer -= delta;
+                }
+
+                if (activeBall.position.y >= 17.6) {
+                    activeBall.position.y = 17.6;
+                    checkLightCollision(activeBall.position);
+                    if (vel.y > 0) {
+                        vel.y = -vel.y * 0.55;
+                        playBounceSound(0.6);
+                    }
+                }
+
+                const playerCenter = playerPosition.clone().add(new THREE.Vector3(0, 0.8, 0));
+                if (activeBall.position.distanceTo(playerCenter) < 0.9) {
+                    const hitDir = activeBall.position.clone().sub(playerCenter).normalize();
+                    vel.reflect(hitDir).multiplyScalar(0.35); 
+                    playBounceSound(0.35);
+                }
+
+                if (activeBall.position.y <= 0.4) {
+                    activeBall.position.y = 0.4;
+                    let impactVel = Math.abs(vel.y);
+                    if (impactVel > 1.0) {
+                        playBounceSound(Math.min(1.0, impactVel / 15));
+                    }
+                    vel.y = -vel.y * 0.55;
+                    vel.x *= 0.82;
+                    vel.z *= 0.82;
+                    
+                    angVel.x += vel.z * 0.5;
+                    angVel.z -= vel.x * 0.5;
+                }
+
+                backboards.forEach((bb, idx) => {
+                    const boardWorldPos = new THREE.Vector3();
+                    bb.mesh.getWorldPosition(boardWorldPos);
+                    const boardWorldQuaternion = new THREE.Quaternion();
+                    bb.mesh.getWorldQuaternion(boardWorldQuaternion);
+
+                    const localBallPos = activeBall.position.clone().sub(boardWorldPos);
+                    localBallPos.applyQuaternion(boardWorldQuaternion.clone().invert());
+
+                    if (Math.abs(localBallPos.x) < 1.95 + 0.4 &&
+                        Math.abs(localBallPos.y) < 1.3 + 0.4 &&
+                        Math.abs(localBallPos.z) < 0.075 + 0.4) {
+                        
+                        vel.z = -vel.z * 0.65;
+                        activeBall.position.z += Math.sign(vel.z) * 0.05;
+                        angVel.x += (Math.random() - 0.5) * 10;
+                        playBounceSound(0.7);
+                    }
+                });
+
+                rims.forEach((rim, idx) => {
+                    const rimWorldPos = new THREE.Vector3();
+                    rim.mesh.getWorldPosition(rimWorldPos);
+
+                    const dx = activeBall.position.x - rimWorldPos.x;
+                    const dz = activeBall.position.z - rimWorldPos.z;
+                    const horizontalDist = Math.hypot(dx, dz);
+                    const verticalDiff = activeBall.position.y - rimWorldPos.y;
+                    const rRadius = 0.60;
+
+                    if (verticalDiff <= 0.15 && verticalDiff >= -0.25 && shotClearedTimer <= 0) {
+                        if (horizontalDist < rRadius - 0.08) {
+                            shotClearedTimer = 1.2; 
+                            playSwishSound();
+                            
+                            backboards[idx].score++;
+                            updateScoreboardTexture(backboards[idx].scoreCanvas, backboards[idx].scoreCtx, backboards[idx].score);
+
+                            if (nets[idx]) {
+                                nets[idx].velocity.set(vel.x * 0.15, -0.4, vel.z * 0.15);
+                                nets[idx].mesh.position.add(nets[idx].velocity);
+                                nets[idx].mesh.rotation.x = (Math.random() - 0.5) * 0.3;
+                                nets[idx].mesh.rotation.z = (Math.random() - 0.5) * 0.3;
+                            }
+                        } 
+                        else if (horizontalDist >= rRadius - 0.08 && horizontalDist <= rRadius + 0.4 + 0.05) {
+                            const angle = Math.atan2(dz, dx);
+                            activeBall.position.x = rimWorldPos.x + Math.cos(angle) * (rRadius + 0.4 + 0.02);
+                            activeBall.position.z = rimWorldPos.z + Math.sin(angle) * (rRadius + 0.4 + 0.02);
+
+                            const outwardVel = new THREE.Vector3(Math.cos(angle), 0.4, Math.sin(angle));
+                            vel.reflect(outwardVel).multiplyScalar(0.45);
+                            vel.y = Math.abs(vel.y) * 0.35;
+                            vel.x += 15;
+                            playBounceSound(0.85);
+                        }
+                    }
+                });
+
+                if (Math.abs(activeBall.position.z) > 26.0) {
+                    vel.z = -vel.z * 0.75;
+                    activeBall.position.z = Math.sign(activeBall.position.z) * 26.0;
+                }
+                if (Math.abs(activeBall.position.x) > 13.5) {
+                    vel.x = -vel.x * 0.75;
+                    activeBall.position.x = Math.sign(activeBall.position.x) * 13.5;
+                }
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>
